@@ -1,26 +1,39 @@
 pipeline {
     agent {
-        docker {
-            image 'node:18' 
+        kubernetes {
+            yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+    - name: node
+      image: node:18
+      command:
+        - cat
+      tty: true
+"""
         }
     }
-
     stages {
-        stage('Install Dependencies') {
+        stage('Install') {
             steps {
-                sh 'npm install'
+                container('node') {
+                    sh 'npm install'
+                }
             }
         }
-
-        stage('Run Tests') {
+        stage('Test') {
             steps {
-                sh 'npm test'
+                container('node') {
+                    sh 'npm test'
+                }
             }
         }
-
         stage('Build') {
             steps {
-                sh 'npm run build'
+                container('node') {
+                    sh 'npm run build'
+                }
             }
         }
     }
