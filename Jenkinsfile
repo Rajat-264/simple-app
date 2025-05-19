@@ -1,5 +1,9 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'node:18' // or node:lts
+        }
+    }
 
     stages {
         stage('Install Dependencies') {
