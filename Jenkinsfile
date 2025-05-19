@@ -1,12 +1,12 @@
 pipeline {
     agent any
-
+    
     environment {
         IMAGE_NAME = 'rajathande/cicd-node-app'
     }
 
     stages {
-        stage('Clone') {
+        stage('Clone Repository') {
             steps {
                 checkout([$class: 'GitSCM', 
                          branches: [[name: 'main']],
@@ -17,7 +17,11 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build(IMAGE_NAME)
+                    // Verify Docker is available
+                    sh 'docker --version'
+                    
+                    // Build the image using shell commands
+                    sh "docker build -t ${IMAGE_NAME} ."
                 }
             }
         }
@@ -25,9 +29,21 @@ pipeline {
         stage('Login to Docker Hub') {
             steps {
                 script {
-                    docker.withRegistry('https://registry.hub.docker.com', 'dckr_pat_ZUEmVaT43W1OKZAIXXWUU4-ko0k') {
-                        docker.image(IMAGE_NAME).push('latest')
+                    withCredentials([usernamePassword(
+                        credentialsId: 'dckr_pat_ZUEmVaT43W1OKZAIXXWUU4-ko0k',
+                        passwordVariable: 'DOCKER_PASSWORD',
+                        usernameVariable: 'DOCKER_USERNAME'
+                    )]) {
+                        sh "echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin"
                     }
+                }
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                script {
+                    sh "docker push ${IMAGE_NAME}:latest"
                 }
             }
         }
@@ -40,6 +56,12 @@ pipeline {
                     sh "docker run -d --name cicd-node-app -p 3000:3000 ${IMAGE_NAME}:latest"
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
         }
     }
 }
