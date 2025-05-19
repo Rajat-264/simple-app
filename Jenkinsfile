@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'docker:latest'
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
 
     environment {
         IMAGE_NAME = 'rajathande/cicd-node-app'
@@ -8,12 +13,12 @@ pipeline {
     stages {
         stage('Clone') {
             steps {
-                git branch: 'main', 
-                    url: 'https://github.com/Rajat-264/simple-app.git'
+                checkout([$class: 'GitSCM', 
+                         branches: [[name: 'main']],
+                         userRemoteConfigs: [[url: 'https://github.com/Rajat-264/simple-app.git']]])
             }
         }
 
-        // Rest of your stages remain the same...
         stage('Build Docker Image') {
             steps {
                 script {
@@ -22,23 +27,23 @@ pipeline {
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Login to Docker Hub') {
             steps {
-                withDockerRegistry([credentialsId: 'dckr_pat_ZUEmVaT43W1OKZAIXXWUU4-ko0k', url: '']) {
-                    script {
+                script {
+                    docker.withRegistry('https://registry.hub.docker.com', 'dckr_pat_ZUEmVaT43W1OKZAIXXWUU4-ko0k') {
                         docker.image(IMAGE_NAME).push('latest')
                     }
                 }
             }
         }
 
-        stage('Run Container (Optional)') {
+        stage('Run Container') {
             steps {
-                sh """
-                    docker stop cicd-node-app || true
-                    docker rm cicd-node-app || true
-                    docker run -d --name cicd-node-app -p 3000:3000 ${IMAGE_NAME}:latest
-                """
+                script {
+                    sh "docker stop cicd-node-app || true"
+                    sh "docker rm cicd-node-app || true"
+                    sh "docker run -d --name cicd-node-app -p 3000:3000 ${IMAGE_NAME}:latest"
+                }
             }
         }
     }
